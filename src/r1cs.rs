@@ -161,15 +161,33 @@ impl<AF: AcirField, F: PrimeField> ConstraintSynthesizer<F> for AcirCircuit<AF> 
         // Create a mapping from ACIR witness indices to R1CS variables
         let mut witness_to_var: BTreeMap<u32, Variable> = BTreeMap::new();
 
-        // Get the total number of witnesses
-        let num_witnesses = self.circuit.current_witness_index as usize + 1;
-
         // Determine which witnesses are public inputs
         let public_inputs = self.circuit.public_inputs();
 
-        // Allocate all witness variables
-        for witness_idx in 0..num_witnesses as u32 {
-            let witness = Witness(witness_idx);
+        // Collect all witness indices that are actually used in constraints
+        let mut used_witnesses: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
+
+        // Public inputs are always used
+        for witness in &public_inputs.0 {
+            used_witnesses.insert(witness.witness_index());
+        }
+
+        // Collect witnesses from all opcodes
+        for opcode in &self.circuit.opcodes {
+            if let Opcode::AssertZero(expr) = opcode {
+                for (_, w_l, w_r) in &expr.mul_terms {
+                    used_witnesses.insert(w_l.witness_index());
+                    used_witnesses.insert(w_r.witness_index());
+                }
+                for (_, w) in &expr.linear_combinations {
+                    used_witnesses.insert(w.witness_index());
+                }
+            }
+        }
+
+        // Allocate variables only for witnesses that are used
+        for witness_idx in &used_witnesses {
+            let witness = Witness(*witness_idx);
             let is_public = public_inputs.0.contains(&witness);
 
             let value = self.witness_values.as_ref().and_then(|wm| wm.get(&witness));
@@ -190,7 +208,7 @@ impl<AF: AcirField, F: PrimeField> ConstraintSynthesizer<F> for AcirCircuit<AF> 
                 })?
             };
 
-            witness_to_var.insert(witness_idx, var);
+            witness_to_var.insert(*witness_idx, var);
         }
 
         // Process each opcode
