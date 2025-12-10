@@ -3,19 +3,49 @@ name = "acvm-backend-groth16"
 version = "0.1.0"
 authors = ["The Noir Team <team@noir-lang.org>"]
 edition = "2021"
-rust-version = "1.66"
+rust-version = "1.85.0"
 license = "MIT OR Apache-2.0"
+description = "Production-ready Groth16 proving backend for Noir's ACVM"
+repository = "https://github.com/noir-lang/acvm-backend-groth16"
+keywords = ["noir", "acvm", "groth16", "zk-snark", "zero-knowledge"]
+categories = ["cryptography"]
 
 [dependencies]
-acvm = "0.9.0"
-arkworks_backend = { git = "https://github.com/noir-lang/arkworks_backend", rev = "17db6b654291bb3ead8a2e20e676c495070b3a6b", default-features = false }
-ark-groth16 = "0.4.0"
+# ACVM dependencies from Noir v1.0.0-beta.16
+acir = { git = "https://github.com/noir-lang/noir", tag = "v1.0.0-beta.16", package = "acir" }
+acir_field = { git = "https://github.com/noir-lang/noir", tag = "v1.0.0-beta.16", package = "acir_field" }
 
-ark-snark = { version = "0.4.0", default-features = false }
-ark-std = { version = "0.4.0", features = ["std", "getrandom"] }
-ark-serialize = { version = "0.4.0", default-features = false, features = ["derive"] }
+# Arkworks dependencies for Groth16
+ark-groth16 = { version = "0.5.0", default-features = false }
+ark-snark = { version = "0.5.0", default-features = false }
+ark-std = { version = "0.5.0", features = ["std", "getrandom"] }
+ark-serialize = { version = "0.5.0", default-features = false, features = ["derive"] }
+ark-relations = { version = "0.5.0", default-features = false }
+ark-ff = { version = "0.5.0", default-features = false }
+ark-ec = { version = "0.5.0", default-features = false }
+
+# Curve-specific dependencies
+ark-bn254 = { version = "0.5.0", default-features = false, features = ["curve"] }
+ark-bls12-381 = { version = "0.5.0", default-features = false, features = ["curve"] }
+
+# Utility dependencies
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+hex = "0.4"
+sha2 = "0.10"
+num-bigint = { version = "0.4", default-features = false }
+
+[dev-dependencies]
+# For tests
 
 [features]
 default = ["bn254"]
-bn254 = ["acvm/bn254", "arkworks_backend/bn254"]
-bls12_381 = ["acvm/bls12_381", "arkworks_backend/bls12_381"]
+bn254 = ["acir/bn254", "acir_field/bn254"]
+bls12_381 = ["acir/bls12_381", "acir_field/bls12_381"]
+# Enable parallel computation using rayon
+parallel = ["ark-std/parallel", "ark-ff/parallel", "ark-ec/parallel", "ark-groth16/parallel"]
+
+[lib]
+name = "acvm_backend_groth16"
+path = "src/lib.rs"
+
