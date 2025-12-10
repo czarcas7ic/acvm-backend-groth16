@@ -198,7 +198,7 @@ impl<AF: AcirField, F: PrimeField> ConstraintSynthesizer<F> for AcirCircuit<AF> 
             match opcode {
                 Opcode::AssertZero(expr) => {
                     // Convert the expression to R1CS constraints
-                    synthesize_expression(&cs, expr, &witness_to_var)?;
+                    synthesize_expression(&cs, expr, &witness_to_var, self.witness_values.as_ref())?;
                 }
                 _ => {
                     // Other opcodes should have been caught by validate_for_r1cs
@@ -229,6 +229,7 @@ fn synthesize_expression<AF: AcirField, F: PrimeField>(
     cs: &ConstraintSystemRef<F>,
     expr: &Expression<AF>,
     witness_to_var: &BTreeMap<u32, Variable>,
+    witness_values: Option<&WitnessMap<AF>>,
 ) -> Result<(), SynthesisError> {
     if expr.is_const() {
         // Constant expression: q_c = 0
@@ -307,10 +308,24 @@ fn synthesize_expression<AF: AcirField, F: PrimeField>(
                 .get(&w_r.witness_index())
                 .ok_or(SynthesisError::AssignmentMissing)?;
 
+            // Get the witness values for w_l and w_r to compute aux = w_l * w_r
+            let w_l_witness = Witness(w_l.witness_index());
+            let w_r_witness = Witness(w_r.witness_index());
+
             // Create auxiliary variable for w_l * w_r
             let aux = cs.new_witness_variable(|| {
-                // This closure is only called during proving when we have values
-                Err(SynthesisError::AssignmentMissing)
+                // During setup, witness_values is None, so we return a dummy value
+                // During proving, we compute the actual product
+                if let Some(wm) = witness_values {
+                    let val_l = wm.get(&w_l_witness).ok_or(SynthesisError::AssignmentMissing)?;
+                    let val_r = wm.get(&w_r_witness).ok_or(SynthesisError::AssignmentMissing)?;
+                    // Compute the product in ACIR field, then convert to ark field
+                    let product = *val_l * *val_r;
+                    Ok(acir_field_to_ark::<AF, F>(&product))
+                } else {
+                    // During setup, return zero (the constraint system doesn't need actual values)
+                    Ok(F::zero())
+                }
             })?;
 
             // Constraint: w_l * w_r = aux
