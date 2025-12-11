@@ -18,7 +18,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-acvm-backend-groth16 = { git = "https://github.com/noir-lang/acvm-backend-groth16" }
+acvm-backend-groth16 = { git = "https://github.com/czarcas7ic/acvm-backend-groth16" }
 ```
 
 ## Security Warning
